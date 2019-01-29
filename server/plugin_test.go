@@ -11,12 +11,17 @@ import (
 )
 
 func TestPlugin(t *testing.T) {
-	links := make([]*Link, 0)
-	links = append(links, &Link{
-		Pattern:  "(Mattermost)",
-		Template: "[Mattermost](https://mattermost.com)",
+	link_titles := make([]*LinkTitle, 0)
+	link_titles = append(link_titles, &LinkTitle{
+		UrlPattern:  "https://mattermost.com",
+		TitleTemplate:  "Mattermost",
 	})
-	validConfiguration := Configuration{links}
+	link_creates := make([]*LinkCreate, 0)
+	link_creates = append(link_creates, &LinkCreate{
+		TextPattern:  "Mattermost",
+		UrlTemplate:  "https://mattermost.com",
+	})
+	validConfiguration := Configuration{link_titles, link_creates}
 
 	api := &plugintest.API{}
 
@@ -29,36 +34,34 @@ func TestPlugin(t *testing.T) {
 	p.SetAPI(api)
 	p.OnConfigurationChange()
 
-	post := &model.Post{Message: "Welcome to Mattermost!"}
+	post := &model.Post{Message: "Welcome to Mattermost! You may enjoy https://mattermost.com."}
 	rpost, _ := p.MessageWillBePosted(&plugin.Context{}, post)
 
-	assert.Equal(t, "Welcome to [Mattermost](https://mattermost.com)!", rpost.Message)
+	assert.Equal(t, "Welcome to [Mattermost](https://mattermost.com)! You may enjoy [Mattermost](https://mattermost.com).", rpost.Message)
 }
 
 func TestSpecialCases(t *testing.T) {
-	links := make([]*Link, 0)
-	links = append(links, &Link{
-		Pattern:  "https://mattermost.com",
-		Template: "[the mattermost portal](https://mattermost.com)",
-	}, &Link{
-		Pattern:  "(Mattermost)",
-		Template: "[Mattermost](https://mattermost.com)",
-	}, &Link{
-		Pattern:  "https://mattermost.atlassian.net/browse/MM-(?P<jira_id>\\d+)",
-		Template: "[MM-$jira_id](https://mattermost.atlassian.net/browse/MM-$jira_id)",
-	}, &Link{
-		Pattern:  "MM-(?P<jira_id>\\d+)",
-		Template: "[MM-$jira_id](https://mattermost.atlassian.net/browse/MM-$jira_id)",
-		DisableNonWordPrefix: true,
-		DisableNonWordSuffix: true,
-	}, &Link{
-		Pattern:  "(Example)",
-		Template: "[Example](https://example.com)",
-	}, &Link{
-		Pattern:  "(foo!bar)",
-		Template: "fb",
+	link_creates := make([]*LinkCreate, 0)
+	link_titles := make([]*LinkTitle, 0)
+	link_creates = append(link_creates, &LinkCreate{
+		TextPattern:  "Mattermost",
+		UrlTemplate: "https://mattermost.com",
+	}, &LinkCreate{
+		TextPattern:  "MM-(?P<jira_id>\\d+)",
+		UrlTemplate: "https://mattermost.atlassian.net/browse/MM-$jira_id",
 	})
-	validConfiguration := Configuration{links}
+	link_titles = append(link_titles, &LinkTitle{
+		UrlPattern:  "https://mattermost.com",
+		TitleTemplate: "the Mattermost portal",
+	}, &LinkTitle{
+		UrlPattern:  "https://www.mattermost.com",
+		TitleTemplate: "the Mattermost portal",
+		UrlTemplate: "https://mattermost.com",
+	}, &LinkTitle{
+		UrlPattern:  "https://mattermost.atlassian.net/browse/MM-(?P<jira_id>\\d+)",
+		TitleTemplate: "MM-$jira_id",
+	})
+	validConfiguration := Configuration{link_titles, link_creates}
 
 	api := &plugintest.API{}
 
@@ -158,7 +161,10 @@ func TestSpecialCases(t *testing.T) {
 			"![  Mattermost  ][1]\n\n[1]: https://mattermost.com/example.png",
 		}, {
 			"Why not visit https://mattermost.com?",
-			"Why not visit [the mattermost portal](https://mattermost.com)?",
+			"Why not visit [the Mattermost portal](https://mattermost.com)?",
+		}, {
+			"Why not visit https://www.mattermost.com?",
+			"Why not visit [the Mattermost portal](https://mattermost.com)?",
 		}, {
 			"Please check https://mattermost.atlassian.net/browse/MM-123 for details",
 			"Please check [MM-123](https://mattermost.atlassian.net/browse/MM-123) for details",
@@ -169,20 +175,8 @@ func TestSpecialCases(t *testing.T) {
 			"Please check the ticket (MM-123) for details",
 			"Please check the ticket ([MM-123](https://mattermost.atlassian.net/browse/MM-123)) for details",
 		}, {
-			"foo!bar\nExample\nfoo!bar Mattermost",
-			"fb\n[Example](https://example.com)\nfb [Mattermost](https://mattermost.com)",
-		}, {
-			"foo!bar",
-			"fb",
-		}, {
-			"foo!barfoo!bar",
-			"foo!barfoo!bar",
-		}, {
-			"foo!bar & foo!bar",
-			"fb & fb",
-		}, {
-			"foo!bar & foo!bar\nfoo!bar & foo!bar\nfoo!bar & foo!bar",
-			"fb & fb\nfb & fb\nfb & fb",
+			"Don't confuse it with https://someone.elses/bugtracker/id=MM-123, which is not ours",
+			"Don't confuse it with https://someone.elses/bugtracker/id=MM-123, which is not ours",
 		},
 	}
 
