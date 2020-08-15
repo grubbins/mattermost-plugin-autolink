@@ -762,7 +762,7 @@ func TestResolveScope(t *testing.T) {
 
 		p := Plugin{}
 		p.SetAPI(api)
-		channelName, teamName, _ := p.resolveScope("TestId")
+		channelName, teamName, _ := p.getChannelInfo("TestId")
 		assert.Equal(t, "TestChannel", channelName)
 		assert.Equal(t, "TestTeam", teamName)
 	})
@@ -778,7 +778,7 @@ func TestResolveScope(t *testing.T) {
 		p := Plugin{}
 		p.SetAPI(api)
 
-		channelName, teamName, _ := p.resolveScope("TestId")
+		channelName, teamName, _ := p.getChannelInfo("TestId")
 		assert.Equal(t, "TestChannel", channelName)
 		assert.Equal(t, "", teamName)
 	})
@@ -792,7 +792,7 @@ func TestResolveScope(t *testing.T) {
 		p := Plugin{}
 		p.SetAPI(api)
 
-		channelName, teamName, err := p.resolveScope("TestId")
+		channelName, teamName, err := p.getChannelInfo("TestId")
 		assert.Error(t, err)
 		assert.Equal(t, teamName, "")
 		assert.Equal(t, channelName, "")
@@ -812,7 +812,7 @@ func TestResolveScope(t *testing.T) {
 		p := Plugin{}
 		p.SetAPI(api)
 
-		channelName, teamName, err := p.resolveScope("TestId")
+		channelName, teamName, err := p.getChannelInfo("TestId")
 		assert.Error(t, err)
 		assert.Equal(t, channelName, "")
 		assert.Equal(t, teamName, "")
@@ -858,7 +858,7 @@ func TestProcessPost(t *testing.T) {
 		_ = p.OnConfigurationChange()
 
 		post := &model.Post{Message: "Welcome to Mattermost!"}
-		rpost, _ := p.ProcessPost(&plugin.Context{}, post)
+		rpost, _ := p.ProcessPost(post)
 
 		assert.Equal(t, "Welcome to Mattermost!", rpost.Message)
 	})
@@ -903,7 +903,7 @@ func TestProcessPost(t *testing.T) {
 		_ = p.OnConfigurationChange()
 
 		post := &model.Post{Message: "Welcome to Mattermost!"}
-		rpost, _ := p.ProcessPost(&plugin.Context{}, post)
+		rpost, _ := p.ProcessPost(post)
 
 		assert.Equal(t, "Welcome to Mattermost!", rpost.Message)
 	})
@@ -951,7 +951,7 @@ func TestProcessPost(t *testing.T) {
 		_ = p.OnConfigurationChange()
 
 		post := &model.Post{Message: "Welcome to Mattermost!"}
-		rpost, _ := p.ProcessPost(&plugin.Context{}, post)
+		rpost, _ := p.ProcessPost(post)
 
 		assert.Equal(t, "Welcome to [Mattermost](https://mattermost.com)!", rpost.Message)
 	})

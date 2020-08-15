@@ -58,19 +58,19 @@ func (p *Plugin) IsAuthorizedAdmin(userID string) (bool, error) {
 	return false, nil
 }
 
-func (p *Plugin) resolveScope(channelID string) (string, string, *model.AppError) {
-	channel, cErr := p.API.GetChannel(channelID)
-	if cErr != nil {
-		return "", "", cErr
+func (p *Plugin) getChannelInfo(channelID string) (string, string, error) {
+	channel, appErr := p.API.GetChannel(channelID)
+	if appErr != nil {
+		return "", "", appErr
 	}
 
 	if channel.TeamId == "" {
 		return channel.Name, "", nil
 	}
 
-	team, tErr := p.API.GetTeam(channel.TeamId)
-	if tErr != nil {
-		return "", "", tErr
+	team, appErr := p.API.GetTeam(channel.TeamId)
+	if appErr != nil {
+		return "", "", appErr
 	}
 
 	return channel.Name, team.Name, nil
@@ -117,7 +117,7 @@ func (p *Plugin) isBotUser(userID string) (bool, *model.AppError) {
 	return user.IsBot, nil
 }
 
-func (p *Plugin) ProcessPost(c *plugin.Context, post *model.Post) (*model.Post, string) {
+func (p *Plugin) ProcessPost(post *model.Post) (*model.Post, string) {
 	conf := p.getConfig()
 	postText := post.Message
 
@@ -132,12 +132,10 @@ func (p *Plugin) ProcessPost(c *plugin.Context, post *model.Post) (*model.Post, 
 	channelName := ""
 	teamName := ""
 	if hasOneOrMoreScopes {
-		cn, tn, rsErr := p.resolveScope(post.ChannelId)
-		channelName = cn
-		teamName = tn
-
-		if rsErr != nil {
-			p.API.LogError("Failed to resolve scope", "error", rsErr.Error())
+		var err error
+		channelName, teamName, err = p.getChannelInfo(post.ChannelId)
+		if err != nil {
+			p.API.LogError("Failed to resolve scope", "error", err.Error())
 		}
 	}
 
@@ -150,13 +148,10 @@ func (p *Plugin) ProcessPost(c *plugin.Context, post *model.Post) (*model.Post, 
 		markdown.Inspect(postText, func(node interface{}) bool {
 			switch node.(type) {
 			// never descend into the text content of a link/image
-			case *markdown.InlineLink:
-				return false
-			case *markdown.InlineImage:
-				return false
-			case *markdown.ReferenceLink:
-				return false
-			case *markdown.ReferenceImage:
+			case *markdown.InlineLink,
+				*markdown.InlineImage,
+				*markdown.ReferenceLink,
+				*markdown.ReferenceImage:
 				return false
 			}
 
@@ -230,7 +225,7 @@ func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Req
 // MessageWillBePosted is invoked when a message is posted by a user before it is committed
 // to the database.
 func (p *Plugin) MessageWillBePosted(c *plugin.Context, post *model.Post) (*model.Post, string) {
-	return p.ProcessPost(c, post)
+	return p.ProcessPost(post)
 }
 
 // MessageWillBeUpdated is invoked when a message is updated by a user before it is committed
@@ -241,5 +236,5 @@ func (p *Plugin) MessageWillBeUpdated(c *plugin.Context, post *model.Post, _ *mo
 		return post, ""
 	}
 
-	return p.ProcessPost(c, post)
+	return p.ProcessPost(post)
 }
